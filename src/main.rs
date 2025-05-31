@@ -55,7 +55,7 @@ fn merge_intervals(intervals: &mut Vec<(usize, usize)>) -> (usize, usize) {
 }
 
 fn paged_comparison(
-    sample_seq: &str,
+    query_seq: &str,
     reference_seq_rc: &str,
     page_size: usize,
     threshold: i32,
@@ -66,16 +66,16 @@ fn paged_comparison(
     (usize, usize),
 ) {
     let len_ref = reference_seq_rc.len();
-    let len_sample = sample_seq.len();
+    let len_query = query_seq.len();
 
-    let num_of_pages_ref = len_sample.max(len_ref) / page_size + 1;
-    let num_of_pages_sample = len_sample.max(len_sample) / page_size + 1;
+    let num_of_pages_ref = len_query.max(len_ref) / page_size + 1;
+    let num_of_pages_query = len_query.max(len_query) / page_size + 1;
 
-    let mut intervals_sample = Vec::new();
+    let mut intervals_query = Vec::new();
     let mut intervals_ref = Vec::new();
 
-    for i in 0..num_of_pages_sample {
-        let query = &sample_seq[i * page_size..((i + 1) * page_size).min(len_sample)];
+    for i in 0..num_of_pages_query {
+        let query = &query_seq[i * page_size..((i + 1) * page_size).min(len_query)];
         for j in 0..num_of_pages_ref {
             let target = &reference_seq_rc[j * page_size..((j + 1) * page_size).min(len_ref)];
 
@@ -86,19 +86,19 @@ fn paged_comparison(
             );
 
             if align_res.editDistance < threshold {
-                intervals_sample.push((i * page_size, ((i + 1) * page_size).min(len_sample)));
+                intervals_query.push((i * page_size, ((i + 1) * page_size).min(len_query)));
                 intervals_ref.push((j * page_size, ((j + 1) * page_size).min(len_ref)));
             }
         }
     }
 
-    let merged_interval_sample = merge_intervals(&mut intervals_sample);
+    let merged_interval_query = merge_intervals(&mut intervals_query);
     let merged_interval_ref = merge_intervals(&mut intervals_ref);
 
     (
-        intervals_sample,
+        intervals_query,
         intervals_ref,
-        merged_interval_sample,
+        merged_interval_query,
         merged_interval_ref,
     )
 }
@@ -110,16 +110,17 @@ fn main() {
     reverse_in_place(&mut refer_sequence);
     let reference_seq_rc = replace_dna_bases(&refer_sequence);
 
-    let mut sample_file = File::open("data/sample.txt").unwrap();
-    let mut sample_seq = String::new();
-    sample_file.read_to_string(&mut sample_seq).unwrap();
+    let mut query_file = File::open("data/query.txt").unwrap();
+    let mut query_seq = String::new();
+    query_file.read_to_string(&mut query_seq).unwrap();
 
-    let (_, __, merged_interval_sample_1, merged_interval_ref_1) =
-        paged_comparison(&sample_seq, &reference_seq_rc, 128, 10);
+    let (_, __, merged_interval_query_1, merged_interval_ref_1) =
+        paged_comparison(&query_seq, &reference_seq_rc, 128, 10);
 
-    println!("{:?}", merged_interval_sample_1);
-    println!("{:?}", (
+    let query_result = merged_interval_query_1;
+    let ref_result = (
         reference_seq_rc.len() - merged_interval_ref_1.1,
         reference_seq_rc.len() - merged_interval_ref_1.0
-    ));
+    );
+    println!("({}, {}, {}, {})", query_result.0, query_result.1, ref_result.0, ref_result.1);
 }
